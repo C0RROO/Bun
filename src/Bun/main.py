@@ -1,4 +1,4 @@
-from messenger_tui.app import MessengerApp
+from Bun.app import MessengerApp
 
 
 def run() -> None:

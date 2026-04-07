@@ -4,9 +4,9 @@ from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Label, Static
 
-from messenger_tui.components.header import AppHeader
-from messenger_tui.components.navbar import NavBar
-from messenger_tui.components.status_footer import StatusFooter
+from Bun.components.header import AppHeader
+from Bun.components.navbar import NavBar
+from Bun.components.status_footer import StatusFooter
 
 
 class BasePage(Screen[None]):

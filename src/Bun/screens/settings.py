@@ -1,4 +1,4 @@
-from messenger_tui.screens.base import BasePage
+from Bun.screens.base import BasePage
 
 
 class SettingsScreen(BasePage):

@@ -4,11 +4,11 @@ from textual.app import ComposeResult
 from textual.containers import Container
 from textual.widgets import Static
 
-from messenger_tui.components.action_input import ActionInput
-from messenger_tui.components.header import AppHeader
-from messenger_tui.components.status_footer import StatusFooter
-from messenger_tui.data import ChatUser
-from messenger_tui.screens.base import BasePage
+from Bun.components.action_input import ActionInput
+from Bun.components.header import AppHeader
+from Bun.components.status_footer import StatusFooter
+from Bun.data import ChatUser
+from Bun.screens.base import BasePage
 
 
 class ChatDetailScreen(BasePage):

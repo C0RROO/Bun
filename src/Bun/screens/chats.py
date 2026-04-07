@@ -2,13 +2,13 @@ from textual import on
 from textual.app import ComposeResult
 from textual.containers import Container
 
-from messenger_tui.components.box_tabs import BoxTabs
-from messenger_tui.components.chat_list import ChatList, ChatListItem
-from messenger_tui.components.navbar import NavBar
-from messenger_tui.components.status_footer import StatusFooter
-from messenger_tui.data import get_users_by_group
-from messenger_tui.screens.chat_detail import ChatDetailScreen
-from messenger_tui.screens.base import BasePage
+from Bun.components.box_tabs import BoxTabs
+from Bun.components.chat_list import ChatList, ChatListItem
+from Bun.components.navbar import NavBar
+from Bun.components.status_footer import StatusFooter
+from Bun.data import get_users_by_group
+from Bun.screens.chat_detail import ChatDetailScreen
+from Bun.screens.base import BasePage
 
 
 class ChatsScreen(BasePage):

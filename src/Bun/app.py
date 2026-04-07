@@ -1,11 +1,11 @@
 from textual.app import App
 from textual.binding import Binding
 
-from messenger_tui.screens.auth import AuthScreen
-from messenger_tui.screens.chats import ChatsScreen
-from messenger_tui.screens.friends import FriendsScreen
-from messenger_tui.screens.settings import SettingsScreen
-from messenger_tui.themes import MESSENGER_THEME
+from Bun.screens.auth import AuthScreen
+from Bun.screens.chats import ChatsScreen
+from Bun.screens.friends import FriendsScreen
+from Bun.screens.settings import SettingsScreen
+from Bun.themes import MESSENGER_THEME
 
 
 class MessengerApp(App[None]):

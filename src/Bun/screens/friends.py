@@ -1,10 +1,10 @@
 from textual.app import ComposeResult
 from textual.containers import Container
 
-from messenger_tui.components.action_input import ActionInput
-from messenger_tui.components.navbar import NavBar
-from messenger_tui.components.status_footer import StatusFooter
-from messenger_tui.screens.base import BasePage
+from Bun.components.action_input import ActionInput
+from Bun.components.navbar import NavBar
+from Bun.components.status_footer import StatusFooter
+from Bun.screens.base import BasePage
 
 
 class FriendsScreen(BasePage):

@@ -7,7 +7,7 @@ from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Static
 
-from messenger_tui.data import CHAT_USERS, ChatUser, get_users_by_group
+from Bun.data import CHAT_USERS, ChatUser, get_users_by_group
 
 
 class ChatListItem(Widget):

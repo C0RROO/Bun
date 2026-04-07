@@ -19,4 +19,4 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [project.scripts]
-messenger-tui = "messenger_tui.main:run"
+bun = "Bun.main:run"
