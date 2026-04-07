@@ -1,0 +1,65 @@
+from __future__ import annotations
+
+from textual import on
+from textual.app import ComposeResult
+from textual.containers import Horizontal
+from textual.message import Message
+from textual.widget import Widget
+from textual.widgets import Button, Input
+
+
+class ActionInput(Widget):
+    """Reusable input row with a single action button."""
+
+    class Submitted(Message):
+        """Posted when the user submits the current input value."""
+
+        def __init__(self, action_input: ActionInput, value: str) -> None:
+            self.action_input = action_input
+            self.value = value
+            super().__init__()
+
+    def __init__(
+        self,
+        *,
+        placeholder: str = "",
+        button_label: str = "Отправить",
+        value: str = "",
+        clear_on_submit: bool = False,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(id=id, classes=classes)
+        self.placeholder = placeholder
+        self.button_label = button_label
+        self.value = value
+        self.clear_on_submit = clear_on_submit
+
+    def compose(self) -> ComposeResult:
+        with Horizontal(classes="action-input"):
+            yield Input(
+                value=self.value,
+                placeholder=self.placeholder,
+                classes="action-input-field",
+            )
+            yield Button(
+                self.button_label,
+                classes="action-input-button",
+            )
+
+    def get_value(self) -> str:
+        return self.query_one(Input).value
+
+    def _submit(self) -> None:
+        value = self.get_value().strip()
+        self.post_message(self.Submitted(self, value))
+        if self.clear_on_submit:
+            self.query_one(Input).value = ""
+
+    @on(Input.Submitted)
+    def on_input_submitted(self, _: Input.Submitted) -> None:
+        self._submit()
+
+    @on(Button.Pressed)
+    def on_button_pressed(self, _: Button.Pressed) -> None:
+        self._submit()
