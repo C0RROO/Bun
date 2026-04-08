@@ -2,6 +2,7 @@ from textual.app import ComposeResult
 from textual.containers import Container
 
 from Bun.components.action_input import ActionInput
+from Bun.components.friend_list import FriendList
 from Bun.components.navbar import NavBar
 from Bun.components.status_footer import StatusFooter
 from Bun.screens.base import BasePage
@@ -20,7 +21,7 @@ class FriendsScreen(BasePage):
                 button_label="Поиск",
                 classes="friends-search-input",
             )
-            with Container(classes="page-content page-intro"):
-                yield from self.build_page_intro()
+            with Container(classes="page-content"):
+                yield FriendList()
             yield NavBar()
             yield StatusFooter()

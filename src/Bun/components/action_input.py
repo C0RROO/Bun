@@ -19,11 +19,19 @@ class ActionInput(Widget):
             self.value = value
             super().__init__()
 
+    class SecondaryPressed(Message):
+        """Posted when the optional secondary action button is pressed."""
+
+        def __init__(self, action_input: ActionInput) -> None:
+            self.action_input = action_input
+            super().__init__()
+
     def __init__(
         self,
         *,
         placeholder: str = "",
         button_label: str = "Отправить",
+        secondary_button_label: str | None = None,
         value: str = "",
         clear_on_submit: bool = False,
         id: str | None = None,
@@ -32,6 +40,7 @@ class ActionInput(Widget):
         super().__init__(id=id, classes=classes)
         self.placeholder = placeholder
         self.button_label = button_label
+        self.secondary_button_label = secondary_button_label
         self.value = value
         self.clear_on_submit = clear_on_submit
 
@@ -42,9 +51,16 @@ class ActionInput(Widget):
                 placeholder=self.placeholder,
                 classes="action-input-field",
             )
+            if self.secondary_button_label is not None:
+                yield Button(
+                    self.secondary_button_label,
+                    classes="action-input-audio-button",
+                    id="action-input-secondary",
+                )
             yield Button(
                 self.button_label,
                 classes="action-input-button",
+                id="action-input-submit",
             )
 
     def get_value(self) -> str:
@@ -60,6 +76,10 @@ class ActionInput(Widget):
     def on_input_submitted(self, _: Input.Submitted) -> None:
         self._submit()
 
-    @on(Button.Pressed)
+    @on(Button.Pressed, "#action-input-submit")
     def on_button_pressed(self, _: Button.Pressed) -> None:
         self._submit()
+
+    @on(Button.Pressed, "#action-input-secondary")
+    def on_secondary_button_pressed(self, _: Button.Pressed) -> None:
+        self.post_message(self.SecondaryPressed(self))
