@@ -7,7 +7,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widget import Widget
 from textual.widgets import Static
 
-from Bun.components.voice_message import VoiceMessage
+from Bun.components.voice_message import VoiceMessage, VoiceControls
 
 
 class IncomingBubble(Widget):
@@ -113,22 +113,42 @@ class OutgoingVoiceMessageGroup(Widget):
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="chat-group-stack"):
-            with Vertical(classes="chat-bubble chat-bubble-outgoing voice-bubble"):
-                yield VoiceMessage(classes="chat-voice-message")
-                with Horizontal(classes="chat-bubble-meta-row"):
-                    yield Static(self.time_text, classes="chat-bubble-time")
-                    yield Static(
-                        "●",
-                        classes="chat-delivery-dot chat-delivery-dot-first is-on"
-                        if self.delivered
-                        else "chat-delivery-dot chat-delivery-dot-first",
-                    )
-                    yield Static(
-                        "●",
-                        classes="chat-delivery-dot is-on"
-                        if self.read
-                        else "chat-delivery-dot",
-                    )
+            with Horizontal(classes="voice-row voice-row-outgoing"):
+                voice = VoiceMessage(classes="chat-voice-message")
+                yield VoiceControls(voice, classes="voice-controls-block")
+                with Vertical(classes="chat-bubble chat-bubble-outgoing voice-bubble"):
+                    yield voice
+                    with Horizontal(classes="chat-bubble-meta-row"):
+                        yield Static(self.time_text, classes="chat-bubble-time")
+                        with Horizontal(classes="chat-delivery-group"):
+                            yield Static(
+                                "●",
+                                classes="chat-delivery-dot chat-delivery-dot-first is-on"
+                                if self.delivered
+                                else "chat-delivery-dot chat-delivery-dot-first",
+                            )
+                            yield Static(
+                                "●",
+                                classes="chat-delivery-dot is-on"
+                                if self.read
+                                else "chat-delivery-dot",
+                            )
+
+
+class IncomingVoiceMessageGroup(Widget):
+    def __init__(self, time_text: str) -> None:
+        super().__init__(classes="chat-group chat-group-incoming")
+        self.time_text = time_text
+
+    def compose(self) -> ComposeResult:
+        with Vertical(classes="chat-group-stack"):
+            with Horizontal(classes="voice-row voice-row-incoming"):
+                voice = VoiceMessage(classes="chat-voice-message")
+                with Vertical(classes="chat-bubble chat-bubble-incoming voice-bubble"):
+                    yield voice
+                    with Horizontal(classes="chat-bubble-meta-row"):
+                        yield Static(self.time_text, classes="chat-bubble-time")
+                yield VoiceControls(voice, classes="voice-controls-block")
 
 
 class ChatThread(Widget):
@@ -186,11 +206,6 @@ class ChatThread(Widget):
                 ],
                 "10:21",
             )
-            yield OutgoingVoiceMessageGroup(
-                "10:22",
-                delivered=True,
-                read=False,
-            )
             yield OutgoingMessageGroup(
                 [
                     "Да, так оно выглядит аккуратнее.",
@@ -215,6 +230,11 @@ class ChatThread(Widget):
                     "После этого можно будет заняться тонкой шлифовкой отступов, ширины пузырей и общей плотности чата.",
                 ],
                 "10:29",
+                delivered=True,
+                read=False,
+            )
+            yield OutgoingVoiceMessageGroup(
+                "10:31",
                 delivered=True,
                 read=False,
             )

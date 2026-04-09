@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
+import math
 import wave
+import random
+import threading
+import time
 
-from textual import on
+from textual import on, events
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
@@ -26,41 +31,31 @@ class VoiceMessage(Widget):
     ) -> None:
         super().__init__(classes=classes, id=id)
         self.audio_path = (
-            Path(__file__).resolve().parents[3] / "media" / "audio" / "voice_test.WAV"
+            Path(__file__).resolve().parents[3]
+            / "media"
+            / "voice"
+            / "voice_test.WAV"
         )
         self.total_seconds = total_seconds
         self._playback_timer = None
         self._player = None
-        self._sparkline_data = [
-            2,
-            4,
-            5,
-            8,
-            6,
-            7,
-            10,
-            5,
-            3,
-            9,
-            8,
-            6,
-            4,
-            7,
-            11,
-            8,
-            5,
-            4,
-            6,
-            9,
-            7,
-            5,
-            3,
-            6,
-            8,
-            10,
-            7,
-            4,
-        ]
+        self._sd_data = None
+        self._sd_fs = None
+        self._sd_device = None
+        self._sd_mono = None
+        self._sparkline_data = [1] * 28
+        self._sparkline_phase = 0.0
+        self._freq_bins = 28
+        self._fft_window = 1024
+        self._fft_hop = 512
+        self._freq_frames = None
+        self._sparkline_display = None
+        self._freq_building = False
+        self._play_start_epoch = None
+        self._play_start_offset = 0.0
+        self._freq_seed = None
+        self.playback_speed = 1.0
+        self.volume = 1.0
         self._resolve_duration()
 
     def _resolve_duration(self) -> None:
@@ -76,16 +71,22 @@ class VoiceMessage(Widget):
             pass
 
     def compose(self) -> ComposeResult:
-        with Horizontal(classes="voice-message"):
-            yield Button("▶", classes="voice-toggle-button", id="voice-toggle")
-            with Vertical(classes="voice-main"):
-                yield Sparkline(self._sparkline_data, classes="voice-sparkline")
-                with Horizontal(classes="voice-meta-row"):
-                    yield Static(self._format_time(self.position_seconds), id="voice-current-time")
-                    yield Static(self._format_time(self.total_seconds), classes="voice-total-time")
+        with Vertical(classes="voice-message"):
+            yield Sparkline(self._sparkline_data, classes="voice-sparkline")
+            with Horizontal(classes="voice-meta-row"):
+                yield Button("▶", classes="voice-toggle-button", id="voice-toggle")
+                yield Static(
+                    self._format_time(self.position_seconds),
+                    classes="voice-current-time",
+                )
+                yield Static(
+                    self._format_time(self.total_seconds),
+                    classes="voice-total-time",
+                )
 
     def on_mount(self) -> None:
-        self._playback_timer = self.set_interval(0.25, self._tick_playback, pause=True)
+        self._playback_timer = self.set_interval(0.1, self._tick_playback, pause=True)
+        self._update_sparkline(animated=False)
 
     @on(Button.Pressed, "#voice-toggle")
     def on_voice_toggle(self) -> None:
@@ -103,11 +104,22 @@ class VoiceMessage(Widget):
     def watch_position_seconds(self, value: float) -> None:
         if not self.is_mounted:
             return
-        current_time = self.query_one("#voice-current-time", Static)
+        current_time = self.query_one(".voice-current-time", Static)
         current_time.update(self._format_time(value))
 
     def _tick_playback(self) -> None:
-        self.position_seconds = min(self.position_seconds + 0.25, self.total_seconds)
+        if self._play_start_epoch is not None:
+            elapsed = max(time.monotonic() - self._play_start_epoch, 0.0)
+            self.position_seconds = min(
+                self._play_start_offset + elapsed * self.playback_speed,
+                self.total_seconds,
+            )
+        else:
+            self.position_seconds = min(
+                self.position_seconds + 0.1 * self.playback_speed,
+                self.total_seconds,
+            )
+        self._update_sparkline(animated=self.is_playing)
         if self.position_seconds >= self.total_seconds:
             self._stop(reset=False)
 
@@ -117,13 +129,27 @@ class VoiceMessage(Widget):
         self.is_playing = True
         if self._playback_timer is not None:
             self._playback_timer.resume()
+        self._update_sparkline(animated=True)
         self._start_audio_backend()
+        self._play_start_offset = self.position_seconds
+        if self._start_sounddevice_playback():
+            self._play_start_epoch = time.monotonic()
+            return
 
     def _pause(self) -> None:
         self.is_playing = False
         if self._playback_timer is not None:
             self._playback_timer.pause()
-        if self._player is not None:
+        self._play_start_epoch = None
+        self._update_sparkline(animated=False)
+        if self._sd_data is not None:
+            try:
+                import sounddevice as sd
+
+                sd.stop()
+            except Exception:
+                pass
+        elif self._player is not None:
             try:
                 self._player.pause()
             except Exception:
@@ -133,7 +159,16 @@ class VoiceMessage(Widget):
         self.is_playing = False
         if self._playback_timer is not None:
             self._playback_timer.pause()
-        if self._player is not None:
+        self._play_start_epoch = None
+        self._update_sparkline(animated=False)
+        if self._sd_data is not None:
+            try:
+                import sounddevice as sd
+
+                sd.stop()
+            except Exception:
+                pass
+        elif self._player is not None:
             try:
                 self._player.stop()
             except Exception:
@@ -145,23 +180,392 @@ class VoiceMessage(Widget):
     def _start_audio_backend(self) -> None:
         if not self.audio_path.exists():
             return
-        if self._player is None:
-            try:
-                from simpleplayer.simpleplayer import simpleplayer as AudioBackend
-
-                self._player = AudioBackend(str(self.audio_path))
-                self._player.play()
-                return
-            except Exception:
-                self._player = None
-                return
+        if self._sd_data is not None and self._sd_fs is not None:
+            return
+        # Prefer sounddevice + soundfile for smoother playback
         try:
-            self._player.resume()
+            import sounddevice as sd
+            import soundfile as sf
+
+            device = os.environ.get("BUN_AUDIO_DEVICE")
+            if device is not None:
+                try:
+                    device = int(device)
+                except ValueError:
+                    pass
+            self._sd_device = device
+
+            self._sd_data, self._sd_fs = sf.read(
+                str(self.audio_path),
+                dtype="float32",
+                always_2d=True,
+            )
+            self._prepare_audio_buffers()
+            return
         except Exception:
             pass
+
+        # Fallback to simpleplayer if available
+        try:
+            from simpleplayer.playsong import PlaySong
+
+            self._player = PlaySong(str(self.audio_path))
+            self._player.play()
+        except Exception:
+            self._player = None
+
+    def _start_sounddevice_playback(self) -> bool:
+        if self._sd_data is None or self._sd_fs is None:
+            return False
+        try:
+            import sounddevice as sd
+
+            if self._sd_device is not None:
+                sd.default.device = self._sd_device
+            sd.default.latency = "high"
+            sd.default.blocksize = 8192
+
+            start_frame = int(self.position_seconds * self._sd_fs)
+            if start_frame >= len(self._sd_data):
+                start_frame = 0
+                self.position_seconds = 0.0
+            audio = self._sd_data[start_frame:]
+            if self.volume != 1.0:
+                audio = audio * self.volume
+                audio = audio.clip(-1.0, 1.0)
+            sd.play(
+                audio,
+                int(self._sd_fs * self.playback_speed),
+                device=self._sd_device,
+                blocking=False,
+            )
+            return True
+        except Exception:
+            return False
+
+    def _update_sparkline(self, *, animated: bool) -> None:
+        if not self.is_mounted:
+            return
+        if self._sd_mono is not None and self._sd_fs is not None:
+            if animated:
+                data = self._compute_frequency_bars(self.position_seconds)
+            else:
+                data = [1] * len(self._sparkline_data)
+        elif not animated:
+            data = [1] * len(self._sparkline_data)
+        else:
+            data = []
+            self._sparkline_phase += 0.35
+            for i in range(len(self._sparkline_data)):
+                phase = self._sparkline_phase + (i / 4.0)
+                value = 1 + int((math.sin(phase) + 1.0) * 4)
+                data.append(max(1, value))
+        if animated:
+            data = self._smooth_bars(data)
+        self._sparkline_data = data
+        try:
+            spark = self.query_one(Sparkline)
+            spark.data = data
+        except Exception:
+            pass
+
+    def _prepare_audio_buffers(self) -> None:
+        if self._sd_data is None:
+            return
+        samples = self._sd_data
+        if samples.ndim == 2 and samples.shape[1] > 1:
+            samples = samples.mean(axis=1)
+        else:
+            samples = samples.reshape(-1)
+        self._sd_mono = samples
+        self._schedule_frequency_build()
+
+    def _compute_frequency_bars(self, position_seconds: float) -> list[int]:
+        if self._sd_mono is None or self._sd_fs is None:
+            return [1] * self._freq_bins
+        if self._freq_frames:
+            if self._freq_seed is None and self._freq_frames:
+                self._freq_seed = self._freq_frames[0]
+            index = int(
+                (position_seconds * self._sd_fs) / max(self._fft_hop, 1)
+            )
+            index = max(0, min(index, len(self._freq_frames) - 1))
+            return self._freq_frames[index]
+        if self._freq_seed is None:
+            self._freq_seed = self._compute_seed_frame()
+        return self._freq_seed
+
+    def _schedule_frequency_build(self) -> None:
+        if self._freq_building:
+            return
+        self._freq_building = True
+
+        def _worker() -> None:
+            try:
+                self._build_frequency_frames()
+            finally:
+                self._freq_building = False
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _build_frequency_frames(self) -> None:
+        if self._sd_mono is None or self._sd_fs is None:
+            return
+        total = len(self._sd_mono)
+        if total == 0:
+            return
+        nyquist = self._sd_fs / 2.0
+        min_freq = 80.0
+        max_freq = min(6000.0, nyquist)
+        if max_freq <= min_freq:
+            return
+
+        def band_center(index: int) -> float:
+            ratio = index / max(self._freq_bins - 1, 1)
+            return min_freq * ((max_freq / min_freq) ** ratio)
+
+        def goertzel(window: list[float], target_freq: float) -> float:
+            k = int(0.5 + (self._fft_window * target_freq / self._sd_fs))
+            omega = (2.0 * math.pi * k) / self._fft_window
+            coeff = 2.0 * math.cos(omega)
+            s_prev = 0.0
+            s_prev2 = 0.0
+            for sample in window:
+                s = sample + coeff * s_prev - s_prev2
+                s_prev2 = s_prev
+                s_prev = s
+            power = s_prev2 * s_prev2 + s_prev * s_prev - coeff * s_prev * s_prev2
+            return math.sqrt(max(power, 0.0))
+
+        frames = []
+        for start in range(0, total, self._fft_hop):
+            end = min(total, start + self._fft_window)
+            window = list(self._sd_mono[start:end])
+            if len(window) < self._fft_window:
+                window += [0.0] * (self._fft_window - len(window))
+            for i in range(self._fft_window):
+                window[i] *= 0.5 - 0.5 * math.cos(
+                    (2.0 * math.pi * i) / self._fft_window
+                )
+            magnitudes = []
+            for i in range(self._freq_bins):
+                freq = band_center(i)
+                magnitudes.append(goertzel(window, freq))
+            peak = max(magnitudes) if magnitudes else 0.0
+            if peak <= 0.0:
+                frames.append([1] * self._freq_bins)
+                continue
+            bars = []
+            for value in magnitudes:
+                height = 1 + int((value / peak) * 6)
+                bars.append(max(1, min(height, 7)))
+            frames.append(bars)
+        self._freq_frames = frames or None
+        if self._freq_frames and self._freq_seed is None:
+            self._freq_seed = self._freq_frames[0]
+
+    def _smooth_bars(self, target: list[int]) -> list[int]:
+        if not target:
+            return [1] * self._freq_bins
+        if self._sparkline_display is None:
+            self._sparkline_display = list(target)
+            return list(target)
+        smoothed = []
+        for idx, value in enumerate(target):
+            current = self._sparkline_display[idx]
+            updated = current + (value - current) * 0.55
+            if value > 2 and random.random() < 0.12:
+                updated += 0.6
+            updated = max(1.0, min(updated, 7.0))
+            smoothed.append(int(round(updated)))
+        self._sparkline_display = smoothed
+        return list(smoothed)
+
+    def _compute_seed_frame(self) -> list[int]:
+        if self._sd_mono is None or self._sd_fs is None:
+            return [1] * self._freq_bins
+        total = len(self._sd_mono)
+        if total == 0:
+            return [1] * self._freq_bins
+        end = min(total, self._fft_window)
+        window = list(self._sd_mono[0:end])
+        if len(window) < self._fft_window:
+            window += [0.0] * (self._fft_window - len(window))
+        for i in range(self._fft_window):
+            window[i] *= 0.5 - 0.5 * math.cos(
+                (2.0 * math.pi * i) / self._fft_window
+            )
+        nyquist = self._sd_fs / 2.0
+        min_freq = 80.0
+        max_freq = min(6000.0, nyquist)
+        if max_freq <= min_freq:
+            return [1] * self._freq_bins
+
+        def band_center(index: int) -> float:
+            ratio = index / max(self._freq_bins - 1, 1)
+            return min_freq * ((max_freq / min_freq) ** ratio)
+
+        def goertzel(window: list[float], target_freq: float) -> float:
+            k = int(0.5 + (self._fft_window * target_freq / self._sd_fs))
+            omega = (2.0 * math.pi * k) / self._fft_window
+            coeff = 2.0 * math.cos(omega)
+            s_prev = 0.0
+            s_prev2 = 0.0
+            for sample in window:
+                s = sample + coeff * s_prev - s_prev2
+                s_prev2 = s_prev
+                s_prev = s
+            power = s_prev2 * s_prev2 + s_prev * s_prev - coeff * s_prev * s_prev2
+            return math.sqrt(max(power, 0.0))
+
+        magnitudes = []
+        for i in range(self._freq_bins):
+            freq = band_center(i)
+            magnitudes.append(goertzel(window, freq))
+        peak = max(magnitudes) if magnitudes else 0.0
+        if peak <= 0.0:
+            return [1] * self._freq_bins
+        bars = []
+        for value in magnitudes:
+            height = 1 + int((value / peak) * 6)
+            bars.append(max(1, min(height, 7)))
+        return bars
 
     @staticmethod
     def _format_time(value: float) -> str:
         total = max(int(value), 0)
         minutes, seconds = divmod(total, 60)
         return f"{minutes}:{seconds:02d}"
+
+    def _speed_label(self) -> str:
+        return f"{self.playback_speed:.2g}x"
+
+    def _volume_label(self) -> str:
+        return f"{int(self.volume * 100)}%"
+
+    def _restart_playback(self) -> None:
+        if not self.is_playing:
+            return
+        self._play_start_epoch = None
+        if self._sd_data is not None:
+            try:
+                import sounddevice as sd
+
+                sd.stop()
+            except Exception:
+                pass
+        self._play()
+
+    def _adjust_speed(self, delta: float) -> None:
+        self.playback_speed = max(0.5, min(2.0, self.playback_speed + delta))
+        if self.is_playing:
+            self._restart_playback()
+
+    def _adjust_volume(self, delta: float) -> None:
+        self.volume = max(0.0, min(1.0, self.volume + delta))
+        if self.is_playing:
+            self._restart_playback()
+
+    def cycle_speed(self) -> None:
+        speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+        try:
+            index = speeds.index(self.playback_speed)
+        except ValueError:
+            index = speeds.index(1.0)
+        self.playback_speed = speeds[(index + 1) % len(speeds)]
+        if self.is_playing:
+            self._restart_playback()
+
+    def cycle_volume(self) -> None:
+        levels = [0.0, 0.25, 0.5, 0.75, 1.0]
+        try:
+            index = levels.index(self.volume)
+        except ValueError:
+            index = levels.index(1.0)
+        self.volume = levels[(index + 1) % len(levels)]
+        if self.is_playing:
+            self._restart_playback()
+
+    @on(events.MouseDown, ".voice-sparkline")
+    def on_sparkline_click(self, event: events.MouseDown) -> None:
+        spark = event.control
+        width = spark.size.width
+        if width <= 1:
+            return
+        ratio = event.offset.x / max(width - 1, 1)
+        ratio = max(0.0, min(1.0, ratio))
+        self.position_seconds = ratio * self.total_seconds
+        self._play_start_offset = self.position_seconds
+        if self.is_playing:
+            self._restart_playback()
+        else:
+            self._update_sparkline(animated=False)
+
+
+class VoiceControls(Widget):
+    def __init__(self, voice: VoiceMessage, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.voice = voice
+
+    def compose(self) -> ComposeResult:
+        yield Button(
+            self.voice._speed_label(),
+            classes="voice-speed-button",
+            id="voice-speed",
+        )
+        yield Button(
+            self.voice._volume_label(),
+            classes="voice-volume-button",
+            id="voice-volume",
+        )
+
+    def on_mount(self) -> None:
+        self._sync_labels()
+
+    def _sync_labels(self) -> None:
+        if not self.is_mounted:
+            return
+        self.query_one("#voice-speed", Button).label = self.voice._speed_label()
+        self.query_one("#voice-volume", Button).label = self.voice._volume_label()
+
+    @on(Button.Pressed, "#voice-speed")
+    def on_speed_pressed(self) -> None:
+        self.voice.cycle_speed()
+        self._sync_labels()
+
+    @on(Button.Pressed, "#voice-volume")
+    def on_volume_pressed(self) -> None:
+        self.voice.cycle_volume()
+        self._sync_labels()
+
+    @on(events.MouseScrollUp, "#voice-speed")
+    def on_speed_scroll_up(self, event: events.MouseScrollUp) -> None:
+        if "shift" not in event.modifiers:
+            return
+        self.voice._adjust_speed(-0.05)
+        self._sync_labels()
+        event.stop()
+
+    @on(events.MouseScrollDown, "#voice-speed")
+    def on_speed_scroll_down(self, event: events.MouseScrollDown) -> None:
+        if "shift" not in event.modifiers:
+            return
+        self.voice._adjust_speed(0.05)
+        self._sync_labels()
+        event.stop()
+
+    @on(events.MouseScrollUp, "#voice-volume")
+    def on_volume_scroll_up(self, event: events.MouseScrollUp) -> None:
+        if "shift" not in event.modifiers:
+            return
+        self.voice._adjust_volume(-0.05)
+        self._sync_labels()
+        event.stop()
+
+    @on(events.MouseScrollDown, "#voice-volume")
+    def on_volume_scroll_down(self, event: events.MouseScrollDown) -> None:
+        if "shift" not in event.modifiers:
+            return
+        self.voice._adjust_volume(0.05)
+        self._sync_labels()
+        event.stop()

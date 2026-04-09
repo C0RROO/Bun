@@ -1,3 +1,5 @@
+import os
+
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, VerticalScroll
@@ -15,6 +17,11 @@ class SettingsScreen(BasePage):
     SHOW_NAVBAR = False
 
     active_tab = reactive("Общие")
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.audio_device_options = self._get_audio_device_options()
+        self.selected_audio_device = os.environ.get("BUN_AUDIO_DEVICE", "default")
 
     STATUS_OPTIONS = [
         ("Программист", "Программист"),
@@ -133,6 +140,15 @@ class SettingsScreen(BasePage):
                     classes="settings-select",
                     allow_blank=False,
                 )
+            with Container(classes="settings-field"):
+                yield Static("Устройство воспроизведения", classes="settings-label")
+                yield Select(
+                    self.audio_device_options,
+                    value=self._resolve_audio_device_value(),
+                    classes="settings-select",
+                    id="settings-audio-device",
+                    allow_blank=False,
+                )
 
     def compose_privacy_settings(self) -> ComposeResult:
         with Container(classes="settings-section"):
@@ -167,6 +183,28 @@ class SettingsScreen(BasePage):
     def on_status_changed(self, event: Select.Changed) -> None:
         other_wrap = self.query_one("#settings-status-other-wrap", Container)
         other_wrap.set_class(event.value != "Другое", "is-hidden")
+
+    @on(Select.Changed, "#settings-audio-device")
+    def on_audio_device_changed(self, event: Select.Changed) -> None:
+        os.environ["BUN_AUDIO_DEVICE"] = str(event.value)
+
+    def _resolve_audio_device_value(self) -> str:
+        available = {str(value) for _, value in self.audio_device_options}
+        if self.selected_audio_device in available:
+            return self.selected_audio_device
+        return next(iter(available))
+
+    def _get_audio_device_options(self) -> list[tuple[str, str]]:
+        try:
+            import sounddevice as sd
+
+            options: list[tuple[str, str]] = [("default", "default")]
+            for idx, device in enumerate(sd.query_devices()):
+                name = device.get("name", f"Device {idx}")
+                options.append((f"{idx}: {name}", str(idx)))
+            return options
+        except Exception:
+            return [("default", "default")]
 
     def on_mount(self) -> None:
         self._sync_settings_tabs()
