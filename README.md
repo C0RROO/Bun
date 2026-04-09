@@ -112,6 +112,8 @@
 python -m venv venv
 source venv/bin/activate
 pip install -e .
+pip install simpleplayer
+`simpleplayer - пока тестирую`
 ```
 
 ### 2. Запуск приложения
