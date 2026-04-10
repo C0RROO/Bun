@@ -55,7 +55,6 @@ class VoiceMessage(Widget):
         self._play_start_offset = 0.0
         self._freq_seed = None
         self.playback_speed = 1.0
-        self.volume = 1.0
         self._resolve_duration()
 
     def _resolve_duration(self) -> None:
@@ -230,8 +229,9 @@ class VoiceMessage(Widget):
                 start_frame = 0
                 self.position_seconds = 0.0
             audio = self._sd_data[start_frame:]
-            if self.volume != 1.0:
-                audio = audio * self.volume
+            volume = getattr(self.app, "global_volume", 1.0)
+            if volume != 1.0:
+                audio = audio * volume
                 audio = audio.clip(-1.0, 1.0)
             sd.play(
                 audio,
@@ -437,12 +437,6 @@ class VoiceMessage(Widget):
         minutes, seconds = divmod(total, 60)
         return f"{minutes}:{seconds:02d}"
 
-    def _speed_label(self) -> str:
-        return f"{self.playback_speed:.2g}x"
-
-    def _volume_label(self) -> str:
-        return f"{int(self.volume * 100)}%"
-
     def _restart_playback(self) -> None:
         if not self.is_playing:
             return
@@ -456,34 +450,8 @@ class VoiceMessage(Widget):
                 pass
         self._play()
 
-    def _adjust_speed(self, delta: float) -> None:
-        self.playback_speed = max(0.5, min(2.0, self.playback_speed + delta))
-        if self.is_playing:
-            self._restart_playback()
-
-    def _adjust_volume(self, delta: float) -> None:
-        self.volume = max(0.0, min(1.0, self.volume + delta))
-        if self.is_playing:
-            self._restart_playback()
-
-    def cycle_speed(self) -> None:
-        speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
-        try:
-            index = speeds.index(self.playback_speed)
-        except ValueError:
-            index = speeds.index(1.0)
-        self.playback_speed = speeds[(index + 1) % len(speeds)]
-        if self.is_playing:
-            self._restart_playback()
-
-    def cycle_volume(self) -> None:
-        levels = [0.0, 0.25, 0.5, 0.75, 1.0]
-        try:
-            index = levels.index(self.volume)
-        except ValueError:
-            index = levels.index(1.0)
-        self.volume = levels[(index + 1) % len(levels)]
-        if self.is_playing:
+    def on_global_volume_changed(self) -> None:
+        if self.is_playing or self._play_start_epoch is not None:
             self._restart_playback()
 
     @on(events.MouseDown, ".voice-sparkline")
@@ -500,72 +468,3 @@ class VoiceMessage(Widget):
             self._restart_playback()
         else:
             self._update_sparkline(animated=False)
-
-
-class VoiceControls(Widget):
-    def __init__(self, voice: VoiceMessage, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.voice = voice
-
-    def compose(self) -> ComposeResult:
-        yield Button(
-            self.voice._speed_label(),
-            classes="voice-speed-button",
-            id="voice-speed",
-        )
-        yield Button(
-            self.voice._volume_label(),
-            classes="voice-volume-button",
-            id="voice-volume",
-        )
-
-    def on_mount(self) -> None:
-        self._sync_labels()
-
-    def _sync_labels(self) -> None:
-        if not self.is_mounted:
-            return
-        self.query_one("#voice-speed", Button).label = self.voice._speed_label()
-        self.query_one("#voice-volume", Button).label = self.voice._volume_label()
-
-    @on(Button.Pressed, "#voice-speed")
-    def on_speed_pressed(self) -> None:
-        self.voice.cycle_speed()
-        self._sync_labels()
-
-    @on(Button.Pressed, "#voice-volume")
-    def on_volume_pressed(self) -> None:
-        self.voice.cycle_volume()
-        self._sync_labels()
-
-    @on(events.MouseScrollUp, "#voice-speed")
-    def on_speed_scroll_up(self, event: events.MouseScrollUp) -> None:
-        if "shift" not in event.modifiers:
-            return
-        self.voice._adjust_speed(-0.05)
-        self._sync_labels()
-        event.stop()
-
-    @on(events.MouseScrollDown, "#voice-speed")
-    def on_speed_scroll_down(self, event: events.MouseScrollDown) -> None:
-        if "shift" not in event.modifiers:
-            return
-        self.voice._adjust_speed(0.05)
-        self._sync_labels()
-        event.stop()
-
-    @on(events.MouseScrollUp, "#voice-volume")
-    def on_volume_scroll_up(self, event: events.MouseScrollUp) -> None:
-        if "shift" not in event.modifiers:
-            return
-        self.voice._adjust_volume(-0.05)
-        self._sync_labels()
-        event.stop()
-
-    @on(events.MouseScrollDown, "#voice-volume")
-    def on_volume_scroll_down(self, event: events.MouseScrollDown) -> None:
-        if "shift" not in event.modifiers:
-            return
-        self.voice._adjust_volume(0.05)
-        self._sync_labels()
-        event.stop()

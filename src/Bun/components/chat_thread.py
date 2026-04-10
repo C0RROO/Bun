@@ -2,12 +2,46 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+import os
+import subprocess
+import sys
+import webbrowser
+from pathlib import Path
+
+from textual import events, on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widget import Widget
 from textual.widgets import Static
 
-from Bun.components.voice_message import VoiceMessage, VoiceControls
+# Импортируем Image из textual-image
+from textual_image.widget import Image
+
+from Bun.components.voice_message import VoiceMessage
+
+
+def _open_file(path: Path) -> None:
+    target = path.resolve()
+    try:
+        if webbrowser.open(target.as_uri(), new=1):
+            return
+    except Exception:
+        pass
+    try:
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", str(target)])
+        elif os.name == "nt":
+            os.startfile(target)  # type: ignore[attr-defined]
+        else:
+            subprocess.Popen(["xdg-open", str(target)])
+    except Exception:
+        pass
+
+
+# ============================================================
+# ВАЖНО: Класс ImagePlaceholder больше не нужен!
+# Удаляем его целиком.
+# ============================================================
 
 
 class IncomingBubble(Widget):
@@ -113,26 +147,23 @@ class OutgoingVoiceMessageGroup(Widget):
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="chat-group-stack"):
-            with Horizontal(classes="voice-row voice-row-outgoing"):
-                voice = VoiceMessage(classes="chat-voice-message")
-                yield VoiceControls(voice, classes="voice-controls-block")
-                with Vertical(classes="chat-bubble chat-bubble-outgoing voice-bubble"):
-                    yield voice
-                    with Horizontal(classes="chat-bubble-meta-row"):
-                        yield Static(self.time_text, classes="chat-bubble-time")
-                        with Horizontal(classes="chat-delivery-group"):
-                            yield Static(
-                                "●",
-                                classes="chat-delivery-dot chat-delivery-dot-first is-on"
-                                if self.delivered
-                                else "chat-delivery-dot chat-delivery-dot-first",
-                            )
-                            yield Static(
-                                "●",
-                                classes="chat-delivery-dot is-on"
-                                if self.read
-                                else "chat-delivery-dot",
-                            )
+            with Vertical(classes="chat-bubble chat-bubble-outgoing voice-bubble"):
+                yield VoiceMessage(classes="chat-voice-message")
+                with Horizontal(classes="chat-bubble-meta-row"):
+                    yield Static(self.time_text, classes="chat-bubble-time")
+                    with Horizontal(classes="chat-delivery-group"):
+                        yield Static(
+                            "●",
+                            classes="chat-delivery-dot chat-delivery-dot-first is-on"
+                            if self.delivered
+                            else "chat-delivery-dot chat-delivery-dot-first",
+                        )
+                        yield Static(
+                            "●",
+                            classes="chat-delivery-dot is-on"
+                            if self.read
+                            else "chat-delivery-dot",
+                        )
 
 
 class IncomingVoiceMessageGroup(Widget):
@@ -142,14 +173,38 @@ class IncomingVoiceMessageGroup(Widget):
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="chat-group-stack"):
-            with Horizontal(classes="voice-row voice-row-incoming"):
-                voice = VoiceMessage(classes="chat-voice-message")
-                with Vertical(classes="chat-bubble chat-bubble-incoming voice-bubble"):
-                    yield voice
-                    with Horizontal(classes="chat-bubble-meta-row"):
-                        yield Static(self.time_text, classes="chat-bubble-time")
-                yield VoiceControls(voice, classes="voice-controls-block")
+            with Vertical(classes="chat-bubble chat-bubble-incoming voice-bubble"):
+                yield VoiceMessage(classes="chat-voice-message")
+                with Horizontal(classes="chat-bubble-meta-row"):
+                    yield Static(self.time_text, classes="chat-bubble-time")
 
+
+class IncomingImageMessageGroup(Widget):
+    """Группа входящих сообщений с изображением (использует textual-image)."""
+
+    def __init__(self, time_text: str) -> None:
+        super().__init__(classes="chat-group chat-group-incoming")
+        self.time_text = time_text
+        self.image_path = (
+            Path(__file__).resolve().parents[3]
+            / "media"
+            / "images"
+            / "bun-daily.jpg"
+        )
+
+    def compose(self) -> ComposeResult:
+        with Vertical(classes="chat-group-stack"):
+            with Vertical(classes="chat-bubble chat-bubble-incoming image-bubble"):
+                if self.image_path.exists():
+                    # Убираем width и height из конструктора
+                    yield Image(str(self.image_path), classes="chat-image")
+                else:
+                    yield Static(
+                        "🖼️ Изображение недоступно",
+                        classes="chat-image-fallback"
+                    )
+                with Horizontal(classes="chat-bubble-meta-row"):
+                    yield Static(self.time_text, classes="chat-bubble-time")
 
 class ChatThread(Widget):
     """Static mock chat thread for the chat detail screen."""
@@ -181,6 +236,8 @@ class ChatThread(Widget):
                 ],
                 "21:12",
             )
+            # Теперь здесь реальное изображение, а не псевдографика
+            yield IncomingImageMessageGroup("21:14")
             yield Static("Сегодня", classes="chat-date-separator")
             yield IncomingMessageGroup(
                 [

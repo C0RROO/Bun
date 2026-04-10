@@ -12,6 +12,19 @@ AppHeader {
     padding: 0 1;
 }
 
+GlobalVolumeOverlay {
+    width: 18;
+    height: 3;
+    position: absolute;
+    offset: 0 5;
+    background: $panel;
+    border: none;
+    layer: overlay;
+    content-align: center middle;
+    padding: 0 1;
+    opacity: 0.9;
+}
+
 .page {
     width: 100%;
     height: 100%;
@@ -595,6 +608,22 @@ ChatListItem {
     margin-bottom: 0;
 }
 
+.image-bubble {
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+.chat-image-placeholder {
+    width: 31;
+    height: 10;
+    color: $text-muted;
+    content-align: center middle;
+    background: $background;
+    text-style: bold;
+    text-align: center;
+    text-wrap: nowrap;
+}
+
 .voice-row .voice-bubble {
     width: 1fr;
 }
@@ -631,16 +660,6 @@ ChatListItem {
     align: right middle;
 }
 
-.voice-bubble .chat-bubble-meta-row {
-    margin-top: 0;
-    align: right middle;
-}
-
-.voice-bubble .chat-bubble-time {
-    width: 1fr;
-    text-align: right;
-}
-
 .chat-delivery-dot {
     width: 2;
     height: 1;
@@ -653,20 +672,13 @@ ChatListItem {
     margin-left: 1;
 }
 
-.voice-bubble .chat-delivery-dot {
-    width: 1;
-}
-
-.voice-bubble .chat-delivery-dot-first {
-    margin-left: 0;
-}
 
 .chat-delivery-dot.is-on {
     color: $accent;
 }
 
 .chat-delivery-group {
-    width: 4;
+    width: auto;
     height: 1;
     layout: horizontal;
     align: right middle;
@@ -696,33 +708,6 @@ ChatListItem {
     margin-right: 1;
 }
 
-.voice-controls-block {
-    width: 5;
-    height: 2;
-    layout: vertical;
-    align: right middle;
-    background: $surface;
-}
-
-.voice-speed-button,
-.voice-volume-button {
-    width: 5;
-    min-width: 5;
-    height: 1;
-    background: $surface-active;
-    color: $text-muted;
-    border: none;
-    text-align: center;
-    content-align: center middle;
-    padding: 0;
-    margin-left: 0;
-}
-
-.voice-speed-button:hover,
-.voice-volume-button:hover {
-    background: $accent;
-    color: $text-accent;
-}
 
 .voice-toggle-button:hover {
     background: $accent;
@@ -754,28 +739,6 @@ ChatListItem {
     text-align: right;
 }
 
-.voice-row {
-    width: 100%;
-    height: auto;
-    layout: horizontal;
-    align: left top;
-}
-
-.voice-row-outgoing {
-    align: right top;
-}
-
-.voice-row-incoming {
-    align: left top;
-}
-
-.voice-row-outgoing .voice-controls-block {
-    margin-right: 1;
-}
-
-.voice-row-incoming .voice-controls-block {
-    margin-left: 1;
-}
 
 FriendList {
     width: 100%;
@@ -1014,4 +977,24 @@ FriendListItem:hover {
 .settings-danger-button.-active {
     background: $error;
     color: $text;
+}
+
+/* Управление размером изображения через CSS */
+.chat-image {
+    width: 100%;        /* Ширина в ячейках терминала */
+    height: auto;     /* Высота автоматически */
+    margin: 1;
+    border: none;
+}
+
+/* Альтернативно, можно ограничить максимальную ширину */
+.chat-image {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Контейнер для изображения в чате */
+.image-bubble {
+    padding: 0;
+    max-width: 100%;
 }
