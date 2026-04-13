@@ -23,25 +23,38 @@ from Bun.components.voice_message import VoiceMessage
 def _open_file(path: Path) -> None:
     target = path.resolve()
     try:
-        if webbrowser.open(target.as_uri(), new=1):
-            return
-    except Exception:
-        pass
-    try:
         if sys.platform == "darwin":
             subprocess.Popen(["open", str(target)])
         elif os.name == "nt":
             os.startfile(target)  # type: ignore[attr-defined]
         else:
             subprocess.Popen(["xdg-open", str(target)])
+        return
+    except Exception:
+        pass
+    try:
+        webbrowser.open(target.as_uri(), new=1)
     except Exception:
         pass
 
 
-# ============================================================
-# ВАЖНО: Класс ImagePlaceholder больше не нужен!
-# Удаляем его целиком.
-# ============================================================
+class ClickableImage(Widget):
+    can_focus = True
+
+    def __init__(self, path: Path, **kwargs) -> None:
+        super().__init__(classes="chat-image-wrapper", **kwargs)
+        self.path = path
+
+    def compose(self) -> ComposeResult:
+        yield Image(str(self.path), classes="chat-image")
+
+    @on(events.MouseDown)
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+        if event.button != 1:
+            return
+        if self.path.exists():
+            _open_file(self.path)
+            event.stop()
 
 
 class IncomingBubble(Widget):
@@ -196,15 +209,14 @@ class IncomingImageMessageGroup(Widget):
         with Vertical(classes="chat-group-stack"):
             with Vertical(classes="chat-bubble chat-bubble-incoming image-bubble"):
                 if self.image_path.exists():
-                    # Убираем width и height из конструктора
-                    yield Image(str(self.image_path), classes="chat-image")
+                    yield ClickableImage(self.image_path)
                 else:
                     yield Static(
                         "🖼️ Изображение недоступно",
                         classes="chat-image-fallback"
                     )
-                with Horizontal(classes="chat-bubble-meta-row"):
-                    yield Static(self.time_text, classes="chat-bubble-time")
+                with Horizontal(classes="chat-bubble-meta-row chat-image-meta-row"):
+                    yield Static(self.time_text, classes="chat-bubble-time chat-image-time")
 
 class ChatThread(Widget):
     """Static mock chat thread for the chat detail screen."""

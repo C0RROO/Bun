@@ -3,9 +3,9 @@ from dataclasses import replace
 from textual.theme import BUILTIN_THEMES, Theme
 
 
-MESSENGER_THEME: Theme = replace(
+BUN_THEME: Theme = replace(
     BUILTIN_THEMES["flexoki"],
-    name="messenger-carbon",
+    name="bun-carbon",
     primary="#F6F5F8",
     secondary="#898989",
     warning="#EEB240",

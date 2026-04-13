@@ -7,6 +7,7 @@ from textual.reactive import reactive
 from textual.widgets import Button, Input, Select, Static
 
 from Bun.components.box_tabs import BoxTabs
+from Bun.components.header import AppHeader
 from Bun.screens.base import BasePage
 
 
@@ -85,6 +86,10 @@ class SettingsScreen(BasePage):
                     ):
                         yield from self.compose_privacy_settings()
             yield self.build_footer()
+
+    def on_button_pressed(self, event) -> None:
+        if event.button.id == "header-back":
+            self.app.switch_mode(self.app.get_return_mode())
 
     def build_footer(self):
         from Bun.components.status_footer import StatusFooter
@@ -170,8 +175,14 @@ class SettingsScreen(BasePage):
                             allow_blank=False,
                         )
             with Horizontal(classes="settings-actions-row"):
-                yield Button("Экспорт сообщений", classes="settings-secondary-button")
-                yield Button("Импорт сообщений", classes="settings-secondary-button")
+                yield Button(
+                    "Экспорт\nсообщений",
+                    classes="settings-secondary-button settings-actions-button settings-actions-primary",
+                )
+                yield Button(
+                    "Импорт\nсообщений",
+                    classes="settings-secondary-button settings-actions-button",
+                )
             yield Button("Удалить все сообщения", classes="settings-danger-button")
 
     @on(BoxTabs.TabChanged)
@@ -187,6 +198,13 @@ class SettingsScreen(BasePage):
     @on(Select.Changed, "#settings-audio-device")
     def on_audio_device_changed(self, event: Select.Changed) -> None:
         os.environ["BUN_AUDIO_DEVICE"] = str(event.value)
+
+    @on(Input.Changed, "#settings-retention")
+    def on_retention_changed(self, event: Input.Changed) -> None:
+        value = event.value
+        digits = "".join(ch for ch in value if ch.isdigit())
+        if value != digits:
+            event.input.value = digits
 
     def _resolve_audio_device_value(self) -> str:
         available = {str(value) for _, value in self.audio_device_options}
@@ -215,3 +233,5 @@ class SettingsScreen(BasePage):
         is_general = self.active_tab == "Общие"
         general.set_class(not is_general, "is-hidden")
         privacy.set_class(is_general, "is-hidden")
+    def build_header(self) -> AppHeader:
+        return AppHeader(title="Настройки", meta="", show_back=True)

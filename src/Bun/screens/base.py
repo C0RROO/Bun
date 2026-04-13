@@ -18,7 +18,7 @@ class BasePage(Screen[None]):
     SHOW_NAVBAR = True
 
     def build_header(self) -> AppHeader:
-        return AppHeader()
+        return AppHeader(show_settings=False)
 
     def build_page_intro(self) -> tuple[Widget, ...]:
         return (

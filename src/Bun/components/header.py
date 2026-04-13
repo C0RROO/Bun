@@ -15,7 +15,7 @@ class AppHeader(Widget):
         title: str = "Corroo",
         meta: str = "online • программист",
         show_back: bool = False,
-        show_settings: bool = True,
+        show_settings: bool = False,
         id: str | None = None,
         classes: str | None = None,
     ) -> None:
@@ -34,7 +34,7 @@ class AppHeader(Widget):
         with Horizontal(classes="header-inner"):
             if self.show_back:
                 yield Button("❮", id="header-back", classes="header-button", flat=True)
-            with Vertical(classes="header-center"):
+            with Horizontal(classes="header-center"):
                 yield Static(self.title, classes="header-name")
                 yield Static(self.meta, classes="header-meta")
             if self.show_settings:

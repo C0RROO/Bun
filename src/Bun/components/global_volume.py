@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from rich.text import Text
-from rich.style import Style
 from textual.widget import Widget
 
 
@@ -28,6 +27,5 @@ class GlobalVolumeOverlay(Widget):
         self.display = False
 
     def render(self) -> Text:
-        label = Style(color="#F4F4F4")
         percent = f"Громкость {int(self._volume * 100)}%"
-        return Text(percent, style=label)
+        return Text(percent)

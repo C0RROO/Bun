@@ -3,13 +3,132 @@ Screen {
     color: $text;
 }
 
+.auth-wrapper {
+    width: 100%;
+    height: 100%;
+    layout: vertical;
+    align: center middle;
+    layer: foreground;
+}
+
+.auth-card {
+    width: 60;
+    max-width: 90%;
+    padding: 2;
+    background: transparent;
+    border: none;
+    layout: vertical;
+    height: auto;
+    min-height: 0;
+}
+
+.auth-title {
+    width: 100%;
+    content-align: center middle;
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+.auth-subtitle {
+    width: 100%;
+    content-align: center middle;
+    color: $text-muted;
+    margin-bottom: 1;
+}
+
+.auth-tabs {
+    width: 100%;
+    height: auto;
+}
+
+Tabs.auth-tabs {
+    height: 1;
+    background: transparent;
+    border: none;
+}
+
+Tabs.auth-tabs Tab {
+    background: $panel;
+    color: $text-muted;
+    width: 1fr;
+    padding: 0;
+    content-align: center middle;
+    text-align: center;
+}
+
+Tabs.auth-tabs Tab:first-child {
+    margin-right: 1;
+}
+
+Tabs.auth-tabs Tab.-active {
+    background: $panel;
+    color: $accent;
+}
+
+.auth-panels {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+}
+
+.auth-panel {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    layout: vertical;
+    display: none;
+}
+
+.auth-panel.is-active {
+    display: block;
+}
+
+.auth-form {
+    width: 100%;
+    layout: vertical;
+    margin-top: 1;
+    height: auto;
+    min-height: 0;
+}
+
+.auth-input {
+    width: 100%;
+    height: 3;
+    margin-bottom: 1;
+    padding: 1 1 0 1;
+    background: $boost;
+    color: $text;
+    border: none;
+}
+
+.auth-button {
+    width: 100%;
+    height: 3;
+    background: $panel;
+    color: $text;
+    border: none;
+    text-align: center;
+    content-align: center middle;
+}
+
+.auth-button:hover {
+    background: $surface-active;
+}
+
+.auth-button:focus,
+.auth-button.-active {
+    background: $accent;
+    color: $text-accent;
+}
+
 AppHeader {
     width: 100%;
-    height: 4;
+    height: 3;
     background: $surface;
     layout: vertical;
     align: center middle;
-    padding: 0 1;
+    padding: 0;
 }
 
 GlobalVolumeOverlay {
@@ -18,6 +137,7 @@ GlobalVolumeOverlay {
     position: absolute;
     offset: 0 5;
     background: $panel;
+    color: $text;
     border: none;
     layer: overlay;
     content-align: center middle;
@@ -62,57 +182,60 @@ StatusFooter {
 
 .header-inner {
     width: 100%;
-    height: 2;
+    height: 3;
     align: center middle;
     content-align: center middle;
+    padding: 0;
 }
 
 .header-button {
-    width: 5;
-    min-width: 5;
-    max-width: 5;
-    height: 2;
-    background: $panel;
-    color: $text;
+    width: 7;
+    min-width: 7;
+    max-width: 7;
+    height: 3;
+    background: transparent;
+    color: $text-muted;
     border: none;
     align: center middle;
     content-align: center middle;
     text-align: center;
     text-style: none;
-    line-pad: 1;
-    margin: 0 1;
     padding: 0;
 }
 
 .header-button:hover {
-    background: $surface-active;
+    background: transparent;
+    color: $accent;
 }
 
 .header-button:focus {
-    background: $accent;
-    color: $text-accent;
+    background: transparent;
+    color: $text-muted;
 }
 
 .header-button.-active {
-    background: $accent;
-    color: $text-accent;
+    background: transparent;
+    color: $text-muted;
 }
 
 .header-button:disabled {
-    background: $app-button-disabled-background;
-    color: $app-button-disabled-foreground;
+    background: transparent;
+    color: $text-disabled;
 }
 
 .header-center {
     width: 1fr;
-    height: 2;
-    padding: 0 1;
+    height: 1;
+    padding: 0;
+    margin: 0 1;
+    margin-top: 1;
+    layout: horizontal;
     align: left middle;
     background: $surface;
 }
 
 .header-name {
-    width: 100%;
+    width: 1fr;
     height: 1;
     content-align: left middle;
     color: $accent;
@@ -120,10 +243,11 @@ StatusFooter {
 }
 
 .header-meta {
-    width: 100%;
+    width: auto;
     height: 1;
-    content-align: left middle;
+    content-align: right middle;
     color: $text-muted;
+    text-align: right;
 }
 
 .app-header-default .header-center {
@@ -257,18 +381,17 @@ NavBar {
 
 .navbar-button:hover {
     background: $surface-active;
-    color: $text;
+    color: $accent;
 }
 
-.navbar-button:focus,
 .navbar-button.-active {
     background: $accent;
-    color: $text-accent;
+    color: $background;
 }
 
 .navbar-button:disabled {
-    background: $app-button-disabled-background;
-    color: $app-button-disabled-foreground;
+    background: $boost;
+    color: $text-disabled;
 }
 
 ActionInput {
@@ -353,8 +476,8 @@ ActionBar {
 }
 
 .action-input-button {
-    width: 12;
-    min-width: 12;
+    width: 11;
+    min-width: 11;
     height: 3;
     background: $panel;
     color: $text;
@@ -366,11 +489,23 @@ ActionBar {
 }
 
 .action-input-audio-button {
-    width: 4;
-    min-width: 4;
+    width: 5;
+    min-width: 5;
     height: 3;
-    margin-right: 1;
-    background: $panel;
+    background: $surface;
+    border: none;
+    color: $text;
+    text-align: center;
+    content-align: center middle;
+    text-style: none;
+    padding: 0;
+}
+
+.action-input-attach-button {
+    width: 5;
+    min-width: 5;
+    height: 3;
+    background: $surface;
     color: $text;
     border: none;
     text-align: center;
@@ -389,6 +524,11 @@ ActionBar {
     color: $text;
 }
 
+.action-input-attach-button:hover {
+    background: $surface-active;
+    color: $text;
+}
+
 .action-input-button:focus,
 .action-input-button.-active {
     background: $accent;
@@ -401,9 +541,15 @@ ActionBar {
     color: $text-accent;
 }
 
+.action-input-attach-button:focus,
+.action-input-attach-button.-active {
+    background: $accent;
+    color: $text-accent;
+}
+
 .action-input-button:disabled {
-    background: $app-button-disabled-background;
-    color: $app-button-disabled-foreground;
+    background: $boost;
+    color: $text-disabled;
 }
 
 .chat-action-input {
@@ -548,6 +694,16 @@ ChatListItem {
     background: $background;
 }
 
+.chat-loading {
+    width: 100%;
+    height: 1fr;
+    align: center middle;
+}
+
+.chat-thread-host {
+    width: 100%;
+    height: 1fr;
+}
 .chat-thread-scroll {
     width: 100%;
     height: 1fr;
@@ -609,8 +765,8 @@ ChatListItem {
 }
 
 .image-bubble {
-    padding: 0 1;
-    margin-bottom: 1;
+    padding: 1 1 0 1;
+    margin-bottom: 0;
 }
 
 .chat-image-placeholder {
@@ -886,12 +1042,14 @@ FriendListItem:hover {
 }
 
 .settings-inline-unit {
-    width: 18;
+    width: 1fr;
 }
 
 #settings-retention {
     width: 8;
     text-align: center;
+    content-align: center middle;
+    padding: 1 1 0 1;
 }
 
 .settings-label {
@@ -906,6 +1064,8 @@ FriendListItem:hover {
     background: $panel;
     color: $text;
     border: none;
+    content-align: left middle;
+    padding: 1 1 0 1;
 }
 
 .settings-input:focus {
@@ -943,6 +1103,18 @@ FriendListItem:hover {
     background: $panel;
     color: $text;
     border: none;
+    content-align: center middle;
+    text-align: center;
+    text-style: bold;
+}
+
+.settings-actions-button {
+    height: 2;
+    padding: 0;
+    line-pad: 1;
+}
+
+.settings-actions-primary {
     margin-right: 1;
 }
 
@@ -980,21 +1152,24 @@ FriendListItem:hover {
 }
 
 /* Управление размером изображения через CSS */
-.chat-image {
-    width: 100%;        /* Ширина в ячейках терминала */
-    height: auto;     /* Высота автоматически */
-    margin: 1;
-    border: none;
-}
-
-/* Альтернативно, можно ограничить максимальную ширину */
-.chat-image {
-    max-width: 100%;
+.chat-image-wrapper {
+    width: 100%;
     height: auto;
 }
 
-/* Контейнер для изображения в чате */
-.image-bubble {
-    padding: 0;
-    max-width: 100%;
+.chat-image {
+    width: 100%;
+    height: auto;
+    margin: 0;
+    border: none;
+}
+
+.chat-image-meta-row {
+    padding-top: 0;
+    margin-top: 0;
+    align: right middle;
+}
+
+.chat-image-time {
+    padding-left: 1;
 }

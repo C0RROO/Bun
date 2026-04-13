@@ -32,6 +32,7 @@ class ActionInput(Widget):
         placeholder: str = "",
         button_label: str = "Отправить",
         secondary_button_label: str | None = None,
+        attach_button_label: str | None = None,
         value: str = "",
         clear_on_submit: bool = False,
         id: str | None = None,
@@ -41,11 +42,18 @@ class ActionInput(Widget):
         self.placeholder = placeholder
         self.button_label = button_label
         self.secondary_button_label = secondary_button_label
+        self.attach_button_label = attach_button_label
         self.value = value
         self.clear_on_submit = clear_on_submit
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="action-input"):
+            if self.attach_button_label is not None:
+                yield Button(
+                    self.attach_button_label,
+                    classes="action-input-attach-button",
+                    id="action-input-attach",
+                )
             yield Input(
                 value=self.value,
                 placeholder=self.placeholder,

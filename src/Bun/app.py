@@ -1,4 +1,6 @@
-from textual.app import App
+import logging
+
+from textual.app import App, ScreenStackError, SystemCommand
 from textual import events
 from textual.binding import Binding
 
@@ -6,43 +8,36 @@ from Bun.screens.auth import AuthScreen
 from Bun.screens.chats import ChatsScreen
 from Bun.screens.friends import FriendsScreen
 from Bun.screens.settings import SettingsScreen
-from Bun.themes import MESSENGER_THEME
+from Bun.themes import BUN_THEME
 from Bun.components.global_volume import GlobalVolumeOverlay
 from Bun.components.voice_message import VoiceMessage
 
+logging.getLogger("textual_image._terminal").setLevel(logging.ERROR)
 
-class MessengerApp(App[None]):
-    """Main application for the messenger TUI."""
+
+class Bun(App[None]):
+    """Main application for the Bun TUI."""
 
     CSS_PATH = "styles/app.tcss"
     MODES = {
-        "auth": "auth",
-        "chats": "chats",
-        "friends": "friends",
-        "settings": "settings",
-    }
-    DEFAULT_MODE = "auth"
-
-    BINDINGS = [
-        Binding("a", "show_auth", "Auth"),
-        Binding("c", "show_chats", "Chats"),
-        Binding("f", "show_friends", "Friends"),
-        Binding("s", "show_settings", "Settings"),
-        Binding("q", "quit", "Quit"),
-    ]
-
-    SCREENS = {
         "auth": AuthScreen,
         "chats": ChatsScreen,
         "friends": FriendsScreen,
         "settings": SettingsScreen,
     }
+    DEFAULT_MODE = "auth"
+
+    BINDINGS = [
+        Binding("shift+p", "show_settings", "Settings"),
+        Binding("q", "quit", "Quit"),
+    ]
+
 
     def __init__(self) -> None:
         super().__init__()
         self.global_volume_percent = 80
-        self.register_theme(MESSENGER_THEME)
-        self.theme = MESSENGER_THEME.name
+        self.register_theme(BUN_THEME)
+        self.theme = BUN_THEME.name
 
     def on_mount(self) -> None:
         self._ensure_volume_toast()
@@ -52,15 +47,34 @@ class MessengerApp(App[None]):
 
     def action_show_auth(self) -> None:
         self.switch_mode("auth")
+        self._sync_navbar()
 
     def action_show_chats(self) -> None:
         self.switch_mode("chats")
+        self._sync_navbar()
 
     def action_show_friends(self) -> None:
         self.switch_mode("friends")
+        self._sync_navbar()
 
     def action_show_settings(self) -> None:
+        self._last_mode = self.current_mode
         self.switch_mode("settings")
+        self._sync_navbar()
+
+    def _sync_navbar(self) -> None:
+        def _do() -> None:
+            try:
+                navbar = self.screen.query_one("NavBar")
+                if hasattr(navbar, "sync_active"):
+                    navbar.sync_active()
+            except Exception:
+                pass
+
+        self.call_after_refresh(_do)
+
+    def get_return_mode(self) -> str:
+        return getattr(self, "_last_mode", "chats")
 
     def on_key(self, event: events.Key) -> None:
         key = event.key
@@ -71,6 +85,20 @@ class MessengerApp(App[None]):
         else:
             self.adjust_global_volume_percent(-5, show=True)
         event.stop()
+
+    def get_system_commands(self, screen):  # noqa: ANN001
+        yield from super().get_system_commands(screen)
+        yield SystemCommand(
+            "Settings",
+            "Открыть настройки",
+            self.action_show_settings,
+        )
+
+    def clear_selection(self) -> None:
+        try:
+            super().clear_selection()
+        except ScreenStackError:
+            return
 
     @property
     def global_volume(self) -> float:

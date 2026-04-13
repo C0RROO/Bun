@@ -4,6 +4,7 @@ from textual import on
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.containers import VerticalScroll
+from textual.widgets import LoadingIndicator
 
 from Bun.components.action_input import ActionInput
 from Bun.components.action_bar import ActionBar
@@ -34,7 +35,9 @@ class ChatDetailScreen(BasePage):
         with Container(classes="page"):
             yield self.build_header()
             with Container(classes="page-content"):
-                yield ChatThread(classes="chat-detail-thread")
+                with Container(classes="chat-loading", id="chat-loading"):
+                    yield LoadingIndicator()
+                yield Container(classes="chat-thread-host", id="chat-thread-host")
             yield ActionBar(
                 button_label="Прокрутить вниз",
                 action="scroll-bottom",
@@ -43,15 +46,29 @@ class ChatDetailScreen(BasePage):
             yield ActionInput(
                 placeholder="Введите сообщение...",
                 button_label="Отправить",
-                secondary_button_label="🎤",
+                secondary_button_label="◉",
+                attach_button_label="⎘",
                 clear_on_submit=True,
                 classes="chat-action-input",
             )
             yield StatusFooter()
 
     def on_mount(self) -> None:
-        self.call_after_refresh(self._scroll_chat_to_bottom)
+        self.call_after_refresh(self._load_chat_thread)
         self.set_interval(0.2, self._update_scroll_action_bar)
+        try:
+            input_widget = self.query_one(ActionInput).query_one("Input")
+            self.set_focus(input_widget)
+        except Exception:
+            pass
+
+    def _load_chat_thread(self) -> None:
+        host = self.query_one("#chat-thread-host", Container)
+        if not host.query(ChatThread):
+            host.mount(ChatThread(classes="chat-detail-thread"))
+        self.query_one("#chat-loading", Container).add_class("is-hidden")
+        self.call_after_refresh(self._scroll_chat_to_bottom)
+        self.set_timer(0.2, self._scroll_chat_to_bottom)
 
     def on_button_pressed(self, event) -> None:
         if event.button.id == "header-back":
@@ -64,11 +81,17 @@ class ChatDetailScreen(BasePage):
             self._set_action_bar_visible(False)
 
     def _scroll_chat_to_bottom(self) -> None:
-        scroll = self.query_one(ChatThread).query_one(".chat-thread-scroll", VerticalScroll)
+        try:
+            scroll = self.query_one(ChatThread).query_one(".chat-thread-scroll", VerticalScroll)
+        except Exception:
+            return
         scroll.scroll_end(animate=False, immediate=True)
 
     def _update_scroll_action_bar(self) -> None:
-        scroll = self.query_one(ChatThread).query_one(".chat-thread-scroll", VerticalScroll)
+        try:
+            scroll = self.query_one(ChatThread).query_one(".chat-thread-scroll", VerticalScroll)
+        except Exception:
+            return
         distance_to_bottom = max(scroll.max_scroll_y - scroll.scroll_offset.y, 0)
         self._set_action_bar_visible(distance_to_bottom > 6)
 

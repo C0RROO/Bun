@@ -1,1 +1,1 @@
-"""Reusable widgets for the messenger TUI."""
+"""Reusable widgets for the Bun TUI."""
