@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime, timedelta
 
 import os
 import subprocess
@@ -18,6 +19,7 @@ from textual.widgets import Static
 from textual_image.widget import Image
 
 from Bun.components.voice_message import VoiceMessage
+from Bun.storage import MessageRow
 
 
 def _open_file(path: Path) -> None:
@@ -105,13 +107,16 @@ class OutgoingBubble(Widget):
 
 
 class IncomingMessageGroup(Widget):
-    def __init__(self, messages: Sequence[str], time_text: str) -> None:
+    def __init__(self, messages: Sequence[str], time_text: str, sender_name: str | None = None) -> None:
         super().__init__(classes="chat-group chat-group-incoming")
         self.messages = list(messages)
         self.time_text = time_text
+        self.sender_name = sender_name
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="chat-group-stack"):
+            if self.sender_name:
+                yield Static(self.sender_name, classes="chat-sender-name")
             last_index = len(self.messages) - 1
             for index, message in enumerate(self.messages):
                 time_text = self.time_text if index == last_index else ""
@@ -126,15 +131,19 @@ class OutgoingMessageGroup(Widget):
         *,
         delivered: bool,
         read: bool,
+        sender_name: str | None = None,
     ) -> None:
         super().__init__(classes="chat-group chat-group-outgoing")
         self.messages = list(messages)
         self.time_text = time_text
         self.delivered = delivered
         self.read = read
+        self.sender_name = sender_name
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="chat-group-stack"):
+            if self.sender_name:
+                yield Static(self.sender_name, classes="chat-sender-name")
             last_index = len(self.messages) - 1
             for index, message in enumerate(self.messages):
                 yield OutgoingBubble(
@@ -152,16 +161,21 @@ class OutgoingVoiceMessageGroup(Widget):
         *,
         delivered: bool,
         read: bool,
+        audio_bytes: bytes | None = None,
     ) -> None:
         super().__init__(classes="chat-group chat-group-outgoing")
         self.time_text = time_text
         self.delivered = delivered
         self.read = read
+        self.audio_bytes = audio_bytes
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="chat-group-stack"):
             with Vertical(classes="chat-bubble chat-bubble-outgoing voice-bubble"):
-                yield VoiceMessage(classes="chat-voice-message")
+                yield VoiceMessage(
+                    audio_bytes=self.audio_bytes,
+                    classes="chat-voice-message",
+                )
                 with Horizontal(classes="chat-bubble-meta-row"):
                     yield Static(self.time_text, classes="chat-bubble-time")
                     with Horizontal(classes="chat-delivery-group"):
@@ -180,14 +194,18 @@ class OutgoingVoiceMessageGroup(Widget):
 
 
 class IncomingVoiceMessageGroup(Widget):
-    def __init__(self, time_text: str) -> None:
+    def __init__(self, time_text: str, audio_bytes: bytes | None = None) -> None:
         super().__init__(classes="chat-group chat-group-incoming")
         self.time_text = time_text
+        self.audio_bytes = audio_bytes
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="chat-group-stack"):
             with Vertical(classes="chat-bubble chat-bubble-incoming voice-bubble"):
-                yield VoiceMessage(classes="chat-voice-message")
+                yield VoiceMessage(
+                    audio_bytes=self.audio_bytes,
+                    classes="chat-voice-message",
+                )
                 with Horizontal(classes="chat-bubble-meta-row"):
                     yield Static(self.time_text, classes="chat-bubble-time")
 
@@ -195,20 +213,15 @@ class IncomingVoiceMessageGroup(Widget):
 class IncomingImageMessageGroup(Widget):
     """Группа входящих сообщений с изображением (использует textual-image)."""
 
-    def __init__(self, time_text: str) -> None:
+    def __init__(self, time_text: str, image_path: Path | None) -> None:
         super().__init__(classes="chat-group chat-group-incoming")
         self.time_text = time_text
-        self.image_path = (
-            Path(__file__).resolve().parents[3]
-            / "media"
-            / "images"
-            / "bun-daily.jpg"
-        )
+        self.image_path = image_path
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="chat-group-stack"):
             with Vertical(classes="chat-bubble chat-bubble-incoming image-bubble"):
-                if self.image_path.exists():
+                if self.image_path is not None and self.image_path.exists():
                     yield ClickableImage(self.image_path)
                 else:
                     yield Static(
@@ -218,92 +231,99 @@ class IncomingImageMessageGroup(Widget):
                 with Horizontal(classes="chat-bubble-meta-row chat-image-meta-row"):
                     yield Static(self.time_text, classes="chat-bubble-time chat-image-time")
 
+
+class OutgoingImageMessageGroup(Widget):
+    def __init__(self, time_text: str, image_path: Path | None) -> None:
+        super().__init__(classes="chat-group chat-group-outgoing")
+        self.time_text = time_text
+        self.image_path = image_path
+
+    def compose(self) -> ComposeResult:
+        with Vertical(classes="chat-group-stack"):
+            with Vertical(classes="chat-bubble chat-bubble-outgoing image-bubble"):
+                if self.image_path is not None and self.image_path.exists():
+                    yield ClickableImage(self.image_path)
+                else:
+                    yield Static(
+                        "🖼️ Изображение недоступно",
+                        classes="chat-image-fallback",
+                    )
+                with Horizontal(classes="chat-bubble-meta-row chat-image-meta-row"):
+                    yield Static(self.time_text, classes="chat-bubble-time chat-image-time")
+
 class ChatThread(Widget):
-    """Static mock chat thread for the chat detail screen."""
+    """Chat thread rendered from the database."""
+
+    def __init__(self, chat_id: int, *, classes: str | None = None) -> None:
+        super().__init__(classes=classes)
+        self.chat_id = chat_id
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(classes="chat-thread-scroll"):
-            yield Static("Вчера", classes="chat-date-separator")
-            yield IncomingMessageGroup(
-                [
-                    "Привет. Ты уже смотрел, как будет выглядеть новый интерфейс?",
-                    "Я хочу, чтобы чат ощущался очень чисто и спокойно.",
-                ],
-                "21:08",
-            )
-            yield OutgoingMessageGroup(
-                [
-                    "Да, как раз собираю минималистичный вариант.",
-                    "Хочу, чтобы всё было спокойно и без перегруза.",
-                    "Без имён, только текст, время и индикаторы.",
-                ],
-                "21:10",
-                delivered=True,
-                read=True,
-            )
-            yield IncomingMessageGroup(
-                [
-                    "Это звучит хорошо.",
-                    "Главное, чтобы в длинной переписке всё читалось без шума.",
-                ],
-                "21:12",
-            )
-            # Теперь здесь реальное изображение, а не псевдографика
-            yield IncomingImageMessageGroup("21:14")
-            yield Static("Сегодня", classes="chat-date-separator")
-            yield IncomingMessageGroup(
-                [
-                    "Супер. Тогда давай ещё подумаем над отображением сообщений и дат.",
-                    "Важно, чтобы было понятно, где мои сообщения, а где сообщения собеседника.",
-                    "И чтобы длинный чат нормально скроллился.",
-                ],
-                "10:15",
-            )
-            yield OutgoingMessageGroup(
-                [
-                    "Сделаем сообщения слева и справа, без имён.",
-                    "Даты оставим по центру и второстепенным цветом.",
-                ],
-                "10:18",
-                delivered=True,
-                read=False,
-            )
-            yield IncomingMessageGroup(
-                [
-                    "Хорошо.",
-                    "А время лучше показывать прямо внутри блока сообщения, а не отдельно снизу.",
-                ],
-                "10:21",
-            )
-            yield OutgoingMessageGroup(
-                [
-                    "Да, так оно выглядит аккуратнее.",
-                    "И ещё добавим два кружка для доставки и прочтения.",
-                    "Первый загорелся — сообщение дошло.",
-                    "Второй загорелся — сообщение прочитано.",
-                ],
-                "10:24",
-                delivered=True,
-                read=False,
-            )
-            yield IncomingMessageGroup(
-                [
-                    "Отлично.",
-                    "Давай ещё добавим побольше сообщений, чтобы сразу проверить ленту на реальном объёме.",
-                ],
-                "10:26",
-            )
-            yield OutgoingMessageGroup(
-                [
-                    "Уже добавляю.",
-                    "После этого можно будет заняться тонкой шлифовкой отступов, ширины пузырей и общей плотности чата.",
-                ],
-                "10:29",
-                delivered=True,
-                read=False,
-            )
-            yield OutgoingVoiceMessageGroup(
-                "10:31",
-                delivered=True,
-                read=False,
-            )
+            db = getattr(self.app, "db", None)
+            if db is None:
+                return
+            messages = db.get_messages(self.chat_id)
+            info = db.get_chat_info(self.chat_id)
+            current_date = None
+            for message in messages:
+                date_label = self._format_date_label(message)
+                if date_label != current_date:
+                    current_date = date_label
+                    yield Static(date_label, classes="chat-date-separator")
+
+                time_label = self._format_time(message)
+                if message.kind == "voice":
+                    if message.sender_is_self:
+                        yield OutgoingVoiceMessageGroup(
+                            time_label,
+                            delivered=message.delivered,
+                            read=message.read,
+                            audio_bytes=message.attachment_blob,
+                        )
+                    else:
+                        yield IncomingVoiceMessageGroup(
+                            time_label,
+                            audio_bytes=message.attachment_blob,
+                        )
+                elif message.kind == "image":
+                    image_path = Path(message.attachment_path) if message.attachment_path else None
+                    if message.sender_is_self:
+                        yield OutgoingImageMessageGroup(time_label, image_path)
+                    else:
+                        yield IncomingImageMessageGroup(time_label, image_path)
+                else:
+                    sender_name = message.sender_login if info.get("kind") == "group" else None
+                    if message.sender_is_self:
+                        yield OutgoingMessageGroup(
+                            [message.body],
+                            time_label,
+                            delivered=message.delivered,
+                            read=message.read,
+                            sender_name=sender_name,
+                        )
+                    else:
+                        yield IncomingMessageGroup(
+                            [message.body],
+                            time_label,
+                            sender_name=sender_name,
+                        )
+
+    def _format_date_label(self, message: MessageRow) -> str:
+        try:
+            dt = datetime.fromisoformat(message.created_at)
+            today = datetime.now().date()
+            if dt.date() == today:
+                return "Сегодня"
+            if dt.date() == (today - timedelta(days=1)):
+                return "Вчера"
+            return dt.strftime("%d.%m.%Y")
+        except Exception:
+            return "Сегодня"
+
+    def _format_time(self, message: MessageRow) -> str:
+        try:
+            dt = datetime.fromisoformat(message.created_at)
+            return dt.strftime("%H:%M")
+        except Exception:
+            return ""

@@ -1,0 +1,49 @@
+Screen {
+    background: $background;
+    color: $text;
+}
+
+.page {
+    width: 100%;
+    height: 100%;
+    layout: vertical;
+    background: $background;
+}
+
+.page-content {
+    width: 100%;
+    height: 1fr;
+    padding: 0;
+    layout: vertical;
+}
+
+.page-chat-list {
+    width: 100%;
+    height: 1fr;
+    padding: 0;
+}
+
+.page-intro {
+    width: 100%;
+    layout: vertical;
+}
+
+.page-route {
+    color: $accent;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.page-title {
+    text-style: bold;
+    color: $text;
+    margin-bottom: 1;
+}
+
+.page-subtitle {
+    color: $text-muted;
+}
+
+.is-hidden {
+    display: none;
+}

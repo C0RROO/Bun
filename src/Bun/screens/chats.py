@@ -6,7 +6,6 @@ from Bun.components.box_tabs import BoxTabs
 from Bun.components.chat_list import ChatList, ChatListItem
 from Bun.components.navbar import NavBar
 from Bun.components.status_footer import StatusFooter
-from Bun.data import get_users_by_group
 from Bun.screens.chat_detail import ChatDetailScreen
 from Bun.screens.base import BasePage
 
@@ -22,7 +21,7 @@ class ChatsScreen(BasePage):
             with Container(classes="page-content"):
                 yield BoxTabs(classes="page-box-tabs")
                 yield ChatList(
-                    users=get_users_by_group("Все"),
+                    group="Все",
                     classes="page-chat-list",
                 )
             yield NavBar()
@@ -35,4 +34,4 @@ class ChatsScreen(BasePage):
     @on(BoxTabs.TabChanged)
     def filter_chats(self, event: BoxTabs.TabChanged) -> None:
         chat_list = self.query_one(ChatList)
-        chat_list.set_users(get_users_by_group(event.tab))
+        chat_list.set_group(event.tab)

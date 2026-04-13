@@ -11,7 +11,7 @@ from Bun.components.action_bar import ActionBar
 from Bun.components.chat_thread import ChatThread
 from Bun.components.header import AppHeader
 from Bun.components.status_footer import StatusFooter
-from Bun.data import ChatUser
+from Bun.storage import ChatSummary
 from Bun.screens.base import BasePage
 
 
@@ -20,16 +20,20 @@ class ChatDetailScreen(BasePage):
 
     SHOW_NAVBAR = False
 
-    def __init__(self, user: ChatUser) -> None:
+    def __init__(self, user: ChatSummary) -> None:
         super().__init__()
         self.user = user
 
     def build_header(self) -> AppHeader:
-        meta = "online"
-        if not self.user.status:
-            meta = "offline"
-        meta = f"{meta} • {self.user.group}"
-        return AppHeader(title=self.user.login, meta=meta, show_back=True)
+        db = getattr(self.app, "db", None)
+        info = db.get_chat_info(self.user.chat_id) if db else {}
+        if info.get("kind") == "group":
+            title = info.get("title") or self.user.login
+            meta = f"{info.get('member_count', 0)} участников • {info.get('online_count', 0)} онлайн"
+        else:
+            title = self.user.login
+            meta = "в сети" if self.user.status else "не в сети"
+        return AppHeader(title=title, meta=meta, show_back=True)
 
     def compose(self) -> ComposeResult:
         with Container(classes="page"):
@@ -65,7 +69,7 @@ class ChatDetailScreen(BasePage):
     def _load_chat_thread(self) -> None:
         host = self.query_one("#chat-thread-host", Container)
         if not host.query(ChatThread):
-            host.mount(ChatThread(classes="chat-detail-thread"))
+            host.mount(ChatThread(self.user.chat_id, classes="chat-detail-thread"))
         self.query_one("#chat-loading", Container).add_class("is-hidden")
         self.call_after_refresh(self._scroll_chat_to_bottom)
         self.set_timer(0.2, self._scroll_chat_to_bottom)

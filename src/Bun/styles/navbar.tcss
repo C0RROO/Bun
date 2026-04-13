@@ -1,0 +1,47 @@
+NavBar {
+    width: 100%;
+    height: 3;
+    dock: bottom;
+    background: $surface;
+    align: center middle;
+    padding: 0;
+}
+
+.navbar {
+    width: 100%;
+    height: 2;
+    layout: horizontal;
+    align: center middle;
+}
+
+.navbar-button {
+    width: 1fr;
+    height: 2;
+    background: $panel;
+    color: $text;
+    border: none;
+    text-align: center;
+    content-align: center middle;
+    text-style: none;
+    line-pad: 1;
+    padding: 0;
+}
+
+.navbar-button:hover {
+    background: $surface-active;
+    color: $accent;
+}
+
+.navbar-button.-active {
+    background: $accent;
+    color: $background;
+}
+
+.navbar-button:disabled {
+    background: $boost;
+    color: $text-disabled;
+}
+
+#navbar-chats {
+    margin-right: 1;
+}

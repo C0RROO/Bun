@@ -3,11 +3,11 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.widget import Widget
 from textual.widgets import Button, Static
 
-from Bun.data import CHAT_USERS, ChatUser
+from Bun.storage import ChatSummary
 
 
 class FriendListItem(Widget):
-    def __init__(self, user: ChatUser) -> None:
+    def __init__(self, user: ChatSummary) -> None:
         super().__init__()
         self.user = user
 
@@ -23,11 +23,15 @@ class FriendListItem(Widget):
 
 
 class FriendList(Widget):
-    def __init__(self, users: list[ChatUser] | None = None) -> None:
+    def __init__(self, users: list[ChatSummary] | None = None) -> None:
         super().__init__()
-        self.users = users or CHAT_USERS
+        self.users = users or []
 
     def compose(self) -> ComposeResult:
+        if not self.users:
+            db = getattr(self.app, "db", None)
+            if db is not None:
+                self.users = db.get_friends()
         with VerticalScroll(classes="friend-list-scroll"):
             last_index = len(self.users) - 1
             for index, user in enumerate(self.users):

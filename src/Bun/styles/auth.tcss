@@ -1,0 +1,118 @@
+.auth-wrapper {
+    width: 100%;
+    height: 100%;
+    layout: vertical;
+    align: center middle;
+    layer: foreground;
+}
+
+.auth-card {
+    width: 60;
+    max-width: 90%;
+    padding: 2;
+    background: transparent;
+    border: none;
+    layout: vertical;
+    height: auto;
+    min-height: 0;
+}
+
+.auth-title {
+    width: 100%;
+    content-align: center middle;
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+.auth-subtitle {
+    width: 100%;
+    content-align: center middle;
+    color: $text-muted;
+    margin-bottom: 1;
+}
+
+.auth-tabs {
+    width: 100%;
+    height: auto;
+}
+
+Tabs.auth-tabs {
+    height: 1;
+    background: transparent;
+    border: none;
+}
+
+Tabs.auth-tabs Tab {
+    background: $panel;
+    color: $text-muted;
+    width: 1fr;
+    padding: 0;
+    content-align: center middle;
+    text-align: center;
+}
+
+Tabs.auth-tabs Tab:first-child {
+    margin-right: 1;
+}
+
+Tabs.auth-tabs Tab.-active {
+    background: $panel;
+    color: $accent;
+}
+
+.auth-panels {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+}
+
+.auth-panel {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    layout: vertical;
+    display: none;
+}
+
+.auth-panel.is-active {
+    display: block;
+}
+
+.auth-form {
+    width: 100%;
+    layout: vertical;
+    margin-top: 1;
+    height: auto;
+    min-height: 0;
+}
+
+.auth-input {
+    width: 100%;
+    height: 3;
+    margin-bottom: 1;
+    padding: 1 1 0 1;
+    background: $boost;
+    color: $text;
+    border: none;
+}
+
+.auth-button {
+    width: 100%;
+    height: 3;
+    background: $panel;
+    color: $text;
+    border: none;
+    text-align: center;
+    content-align: center middle;
+}
+
+.auth-button:hover {
+    background: $surface-active;
+}
+
+.auth-button:focus,
+.auth-button.-active {
+    background: $accent;
+    color: $text-accent;
+}

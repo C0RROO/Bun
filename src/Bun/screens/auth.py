@@ -28,6 +28,7 @@ class AuthScreen(Screen[None]):
                             yield Input(
                                 placeholder="Логин",
                                 classes="auth-input",
+                                id="auth-login-input",
                             )
                             yield Input(
                                 placeholder="Пароль",
@@ -66,5 +67,12 @@ class AuthScreen(Screen[None]):
 
     @on(Button.Pressed, ".auth-button")
     def on_auth_submit(self) -> None:
+        try:
+            login_input = self.query_one("#auth-login-input", Input)
+            login = login_input.value.strip() or "Corroo"
+        except Exception:
+            login = "Corroo"
+        if hasattr(self.app, "login_user"):
+            self.app.login_user(login)
         if hasattr(self.app, "action_show_chats"):
             self.app.action_show_chats()

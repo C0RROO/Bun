@@ -26,16 +26,17 @@ class VoiceMessage(Widget):
         self,
         *,
         total_seconds: float = 18.0,
+        audio_bytes: bytes | None = None,
+        audio_path: Path | None = None,
         classes: str | None = None,
         id: str | None = None,
     ) -> None:
         super().__init__(classes=classes, id=id)
-        self.audio_path = (
-            Path(__file__).resolve().parents[3]
-            / "media"
-            / "voice"
-            / "voice_test.WAV"
-        )
+        self._audio_bytes = audio_bytes
+        if audio_path is not None:
+            self.audio_path = audio_path
+        else:
+            self.audio_path = Path()
         self.total_seconds = total_seconds
         self._playback_timer = None
         self._player = None
@@ -55,7 +56,8 @@ class VoiceMessage(Widget):
         self._play_start_offset = 0.0
         self._freq_seed = None
         self.playback_speed = 1.0
-        self._resolve_duration()
+        if self._audio_bytes is None:
+            self._resolve_duration()
 
     def _resolve_duration(self) -> None:
         if not self.audio_path.exists():
@@ -84,8 +86,27 @@ class VoiceMessage(Widget):
                 )
 
     def on_mount(self) -> None:
+        if self._audio_bytes is not None:
+            self._write_audio_blob()
+            self._resolve_duration()
         self._playback_timer = self.set_interval(0.1, self._tick_playback, pause=True)
         self._update_sparkline(animated=False)
+
+    def _write_audio_blob(self) -> None:
+        if self._audio_bytes is None:
+            return
+        try:
+            base_dir = getattr(self.app, "user_dir", None)
+            if base_dir is None:
+                return
+            cache_dir = Path(base_dir) / "voice_cache"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            target = cache_dir / "voice_preview.wav"
+            if not target.exists():
+                target.write_bytes(self._audio_bytes)
+            self.audio_path = target
+        except Exception:
+            pass
 
     @on(Button.Pressed, "#voice-toggle")
     def on_voice_toggle(self) -> None:
